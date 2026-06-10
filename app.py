@@ -21,7 +21,7 @@ if st.session_state.selected_game is not None:
     game = st.session_state.selected_game
     
     # Back navigation button
-    if st.button("⬅ Back to Ledger"):
+    if st.button("⬅ Back to Ledger!"):
         st.session_state.selected_game = None
         st.rerun()
         
