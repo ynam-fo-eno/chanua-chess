@@ -1,1 +1,5 @@
-.pgn 
+*.pgn 
+
+.env
+
+.env.*
