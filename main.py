@@ -6,6 +6,9 @@ import os
 import uuid
 from pymongo import MongoClient
 
+from dotenv import load_dotenv
+load_dotenv()
+
 app = FastAPI(title="Chanua Chess API")
 
 # Connect to MongoDB via Environment Variable
