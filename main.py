@@ -3,14 +3,14 @@ from typing import List
 import chess.pgn
 import io
 import os
+import uuid
 from pymongo import MongoClient
 
 app = FastAPI(title="Chanua Chess API")
 
-# Connect to local MongoDB instance
+# Connect to MongoDB via Environment Variable
 MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
 client = MongoClient(MONGO_URI)
-
 
 db = client["timo_db_1"]  
 games_collection = db["ChessPGNs"]
@@ -24,7 +24,6 @@ def root():
 async def upload_pgn(files: List[UploadFile] = File(...)):
     total_games_parsed = 0
     
-    # Loop through every file uploaded
     for file in files:
         contents = await file.read()
         pgn_text = contents.decode("utf-8")
@@ -33,16 +32,21 @@ async def upload_pgn(files: List[UploadFile] = File(...)):
         while True:
             game = chess.pgn.read_game(pgn_io)
             if game is None:
-                break  # Moves to the next file when the current one is done
+                break
                 
             headers = dict(game.headers)
-
             headers["moves"] = str(game.mainline_moves())
+            
+            # Robust unique ID check to handle games that lack standard Lichess URLs
             game_url = headers.get("Site", "")
-            game_id = game_url.split("/")[-1] if game_url else f"generated_{total_games_parsed}"
+            if game_url and "/" in game_url:
+                game_id = game_url.split("/")[-1]
+            else:
+                game_id = str(uuid.uuid4())
             
             headers["_id"] = game_id  
             
+            # Upsert into collection cleanly
             games_collection.update_one({"_id": game_id}, {"$set": headers}, upsert=True)
             total_games_parsed += 1
             
@@ -51,7 +55,6 @@ async def upload_pgn(files: List[UploadFile] = File(...)):
 
 @app.get("/games/")
 def get_all_games():
-    # Retrieve all records from the collection and clean IDs for JSON compliance
     cursor = games_collection.find()
     games = []
     for game in cursor:
@@ -66,10 +69,7 @@ def get_recent_games(
     sort: str = Query("Newest First"),
     skip: int = Query(0)
 ):
-    # -1 tells Mongo to sort descending (newest), 1 sorts ascending (oldest)
     mongo_sort = -1 if sort == "Newest First" else 1
-    
-    # Query, sort by Lichess PGN Date field, and apply the limit directly to the database cursor
     cursor = games_collection.find().sort("Date", mongo_sort).skip(skip).limit(limit)
     
     games = []

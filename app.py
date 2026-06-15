@@ -57,10 +57,11 @@ if st.session_state.selected_game is not None:
             st.markdown("**Move # | White | Black**")
             st.markdown("---")
             for i in range(0, min(halfway_point, len(tokens)), 3):
-                move_num = tokens[i]
-                w_move = tokens[i+1] if i+1 < len(tokens) else ""
-                b_move = tokens[i+2] if i+2 < len(tokens) else ""
-                st.markdown(f"`{move_num}` **{w_move}** | {b_move}")
+                if i < len(tokens):
+                    move_num = tokens[i]
+                    w_move = tokens[i+1] if i+1 < len(tokens) else ""
+                    b_move = tokens[i+2] if i+2 < len(tokens) else ""
+                    st.markdown(f"`{move_num}` **{w_move}** | {b_move}")
                 
         with grid_col2:
             st.markdown("**Move # | White | Black**")
@@ -68,10 +69,11 @@ if st.session_state.selected_game is not None:
             # Continue the second half of the game moves in column 2
             start_index = halfway_point - (halfway_point % 3)
             for i in range(max(start_index, 3), len(tokens), 3):
-                move_num = tokens[i]
-                w_move = tokens[i+1] if i+1 < len(tokens) else ""
-                b_move = tokens[i+2] if i+2 < len(tokens) else ""
-                st.markdown(f"`{move_num}` **{w_move}** | {b_move}")
+                if i < len(tokens):
+                    move_num = tokens[i]
+                    w_move = tokens[i+1] if i+1 < len(tokens) else ""
+                    b_move = tokens[i+2] if i+2 < len(tokens) else ""
+                    st.markdown(f"`{move_num}` **{w_move}** | {b_move}")
     else:
         st.info("No inline notation logs found for this specific game entry. Ensure your backend parses game.mainline_moves().")
 
@@ -99,42 +101,39 @@ else:
                         data = response.json()
                         st.success(f"Success! Processed and synced {data['games_parsed']} games across {len(uploaded_files)} files to MongoDB.")
                     else:
-                        st.error("Error processing files via API.")
+                        st.error(f"Error processing files via API. Server returned status code: {response.status_code}")
                 except requests.exceptions.ConnectionError:
                     st.error("Connection failed. Is the FastAPI server running?")
 
     st.write("---")
     
-# 2. Analytical Reporting
-st.header("2. Analytical Reporting")
+    # 2. Analytical Reporting
+    st.header("2. Analytical Reporting")
 
-if st.button("Fetch All Stored Games"):
-    with st.spinner("Quarrying MongoDB Atlas cloud..."):
-        try:
-            # Point to your live Hugging Face URL
-            response = requests.get(f"{BACKEND_URL}/games/")
-            
-            if response.status_code == 200:
-                data = response.json()
-                # Read the "games" list directly from your backend dictionary layout
-                games_list = data.get("games", [])
-                
-                if games_list:
-                    st.success(f"Found {len(games_list)} games in the cluster!")
-                    df = pd.DataFrame(games_list)
-                    st.dataframe(df, use_container_width=True)
+    if st.button("Fetch All Stored Games"):
+        with st.spinner("Quarrying MongoDB Atlas cloud..."):
+            try:
+                response = requests.get(f"{BACKEND_URL}/games/")
+                if response.status_code == 200:
+                    data = response.json()
+                    games_list = data.get("games", [])
+                    
+                    if games_list:
+                        st.success(f"Found {len(games_list)} games in the cluster!")
+                        df = pd.DataFrame(games_list)
+                        st.dataframe(df, use_container_width=True)
+                    else:
+                        st.info("The database is completely empty. Sync some PGN chunks first!")
                 else:
-                    st.info("The database is completely empty. Sync some PGN chunks first!")
-            else:
-                st.error(f"Failed to connect. HTTP Status Code: {response.status_code}")
+                    st.error(f"Failed to connect. HTTP Status Code: {response.status_code}")
+            except Exception as e:
+                st.error(f"Connection framework engine failed: {e}")
                 
-        except Exception as e:
-            st.error(f"Connection framework engine failed: {e}")
-            
+    st.write("---")
+
     # --- Section 3: Interactive Ledger & Improved Rendering Loop ---
     st.header("3. Game Ledger Interface")
     
-    # Callback helper function to reset page view if filters change
     def reset_page():
         st.session_state.current_page = 0
 
@@ -174,7 +173,7 @@ if st.button("Fetch All Stored Games"):
                     row_cols[3].write(game_item.get("Result", "*"))
                     row_cols[4].write(game_item.get("TimeControl", "N/A"))
                     
-                    if row_cols[5].button("View Sheet", key=f"btn_{game_item['_id']}"):
+                    if row_cols[5].button("View Sheet", key=f"btn_{game_item.get('_id')}"):
                         st.session_state.selected_game = game_item
                         st.rerun()
 
@@ -184,7 +183,6 @@ if st.button("Fetch All Stored Games"):
                 pag_col1, pag_col2, pag_col3 = st.columns([1, 2, 1])
                 
                 with pag_col1:
-                    # Disable button or hide if on the first page
                     if st.session_state.current_page > 0:
                         if st.button("⬅️ Previous Page"):
                             st.session_state.current_page -= 1
@@ -194,13 +192,10 @@ if st.button("Fetch All Stored Games"):
                     st.markdown(f"<p style='text-align: center; font-weight: bold;'>Viewing Page {st.session_state.current_page + 1}</p>", unsafe_allow_html=True)
                     
                 with pag_col3:
-                    # Only show "Next Page" if we actually filled the current page payload fully
                     if len(recent_games_list) == game_limit:
                         if st.button("Next Page ➡️"):
                             st.session_state.current_page += 1
                             st.rerun()
-                # --- END PAGINATION BUTTON INTERFACE ---
-
             else:
                 st.warning("No records found matching current query configurations.")
                 if st.session_state.current_page > 0:
