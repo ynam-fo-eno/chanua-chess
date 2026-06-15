@@ -13,7 +13,20 @@ app = FastAPI(title="Chanua Chess API")
 
 # Connect to MongoDB via Environment Variable
 MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
-client = MongoClient(MONGO_URI)
+
+# Add robust fallback parameters if it is an Atlas link to clear SSL/TLS handshake alerts
+if "mongodb+srv" in MONGO_URI:
+    client = MongoClient(
+        MONGO_URI,
+        tls=True,
+        tlsAllowInvalidCertificates=True,
+        retryWrites=True,
+        connectTimeoutMS=30000,
+        socketTimeoutMS=30000
+    )
+else:
+    # Standard fallback configuration for local machine development
+    client = MongoClient(MONGO_URI)
 
 db = client["timo_db_1"]  
 games_collection = db["ChessPGNs"]
