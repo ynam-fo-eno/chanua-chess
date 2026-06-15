@@ -105,23 +105,32 @@ else:
 
     st.write("---")
     
-    # --- Section 2: Analytical Reporting & High-Level Metrics ---
-    st.header("2. Analytical Reporting")
-    
-    if st.button("Fetch Current Metrics"):
-        with st.spinner("Querying system total ledger count..."):
-            try:
-                metrics_res = requests.get(f"{BACKEND_URL}/games/")
-                if metrics_res.status_code == 200:
-                    all_games = metrics_res.json().get("games", [])
-                    st.metric(label="Total Bullet Games Recorded", value=len(all_games))
+# 2. Analytical Reporting
+st.header("2. Analytical Reporting")
+
+if st.button("Fetch All Stored Games"):
+    with st.spinner("Quarrying MongoDB Atlas cloud..."):
+        try:
+            # Point to your live Hugging Face URL
+            response = requests.get(f"{BACKEND_URL}/games/")
+            
+            if response.status_code == 200:
+                data = response.json()
+                # Read the "games" list directly from your backend dictionary layout
+                games_list = data.get("games", [])
+                
+                if games_list:
+                    st.success(f"Found {len(games_list)} games in the cluster!")
+                    df = pd.DataFrame(games_list)
+                    st.dataframe(df, use_container_width=True)
                 else:
-                    st.error("Could not fetch database totals.")
-            except requests.exceptions.ConnectionError:
-                st.error("Unable to query records. Ensure backend is active.")
-
-    st.write("---")
-
+                    st.info("The database is completely empty. Sync some PGN chunks first!")
+            else:
+                st.error(f"Failed to connect. HTTP Status Code: {response.status_code}")
+                
+        except Exception as e:
+            st.error(f"Connection framework engine failed: {e}")
+            
     # --- Section 3: Interactive Ledger & Improved Rendering Loop ---
     st.header("3. Game Ledger Interface")
     
