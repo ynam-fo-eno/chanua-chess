@@ -11,7 +11,7 @@ if "current_page" not in st.session_state:
 
 # Global Page Settings
 st.set_page_config(page_title="Chanua Chess Dashboard", layout="wide")
-BACKEND_URL = "http://127.0.0.1:8000"
+BACKEND_URL = "https://otanimnaynek-chanua-chess-api.hf.space"
 
 
 # ==========================================
